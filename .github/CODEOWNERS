@@ -1,14 +1,14 @@
-### REPOSITORY
+### 仓库维护
 /.github/CODEOWNERS @sdushantha @ppfeister
 /.github/FUNDING.yml @sdushantha
 /LICENSE @sdushantha
 
-### PACKAGING
-# Changes made to these items without code owner approval may negatively
-# impact packaging pipelines.
+### 打包配置
+# 未经代码所有者审核而修改这些文件，
+# 可能影响打包流水线。
 /pyproject.toml @ppfeister @sdushantha
 
-### REGRESSION
+### 回归测试
 /.github/workflows/regression.yml @ppfeister
 /tox.ini @ppfeister
 /pytest.ini @ppfeister

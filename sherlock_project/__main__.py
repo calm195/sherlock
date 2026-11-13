@@ -1,17 +1,15 @@
 #! /usr/bin/env python3
 
-"""
-Sherlock: Find Usernames Across Social Networks Module
+"""Sherlock 模块运行入口。
 
-This module contains the main logic to search for usernames at social
-networks.
+检查 Python 版本后，启动跨社交网络的用户名查询。
 """
 
 import sys
 
 
 if __name__ == "__main__":
-    # Check if the user is using the correct version of Python
+    # 检查用户使用的 Python 版本是否受支持。
     python_version = sys.version.split()[0]
 
     if sys.version_info < (3, 9):

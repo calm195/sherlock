@@ -21,8 +21,8 @@ def simple_query(sites_info: dict, site: str, username: str) -> QueryStatus:
 
 @pytest.mark.online
 class TestLiveTargets:
-    """Actively test probes against live and trusted targets"""
-    # Known positives should only use sites trusted to be reliable and unchanging
+    """针对真实且可信的站点验证探测功能。"""
+    # 已知存在的账号样本应只选用可靠且规则稳定的站点。
     @pytest.mark.parametrize('site,username',[
         ('GitLab', 'ppfeister'),
         ('AllMyLinks', 'blue'),
@@ -31,7 +31,7 @@ class TestLiveTargets:
         assert simple_query(sites_info=sites_info, site=site, username=username) is QueryStatus.CLAIMED
 
 
-    # Known positives should only use sites trusted to be reliable and unchanging
+    # 已知存在的账号样本应只选用可靠且规则稳定的站点。
     @pytest.mark.parametrize('site,username',[
         ('GitHub', 'ppfeister'),
         ('GitHub', 'sherlock-project'),
@@ -42,7 +42,7 @@ class TestLiveTargets:
         assert simple_query(sites_info=sites_info, site=site, username=username) is QueryStatus.CLAIMED
 
 
-    # Known positives should only use sites trusted to be reliable and unchanging
+    # 已知存在的账号样本应只选用可靠且规则稳定的站点。
     @pytest.mark.parametrize('site,username',[
         ('Keybase', 'blue'),
         ('devRant', 'blue'),
@@ -51,10 +51,10 @@ class TestLiveTargets:
         assert simple_query(sites_info=sites_info, site=site, username=username) is QueryStatus.CLAIMED
 
 
-    # Randomly generate usernames of high length and test for positive availability
-    # Randomly generated usernames should be simple alnum for simplicity and high
-    # compatibility. Several attempts may be made ~just in case~ a real username is
-    # generated.
+    # 随机生成较长的用户名，验证其被判定为未注册。
+    # 为保持生成逻辑简单并兼容更多站点，
+    # 用户名只使用字母和数字；允许多次尝试，
+    # 以免随机生成的用户名恰好已被注册。
     @pytest.mark.parametrize('site,random_len',[
         ('GitLab', 255),
         ('Codecademy', 30)
@@ -73,10 +73,10 @@ class TestLiveTargets:
         assert status is QueryStatus.AVAILABLE, f"Could not validate available username after {num_attempts} attempts with randomly generated usernames {attempted_usernames}."
 
 
-    # Randomly generate usernames of high length and test for positive availability
-    # Randomly generated usernames should be simple alnum for simplicity and high
-    # compatibility. Several attempts may be made ~just in case~ a real username is
-    # generated.
+    # 随机生成较长的用户名，验证其被判定为未注册。
+    # 为保持生成逻辑简单并兼容更多站点，
+    # 用户名只使用字母和数字；允许多次尝试，
+    # 以免随机生成的用户名恰好已被注册。
     @pytest.mark.parametrize('site,random_len',[
         ('GitHub', 39),
         ('Docker Hub', 30)
@@ -99,7 +99,7 @@ def test_username_illegal_regex(sites_info):
     site: str = 'BitBucket'
     invalid_handle: str = '*#$Y&*JRE'
     pattern = re.compile(sites_info[site]['regexCheck'])
-    # Ensure that the username actually fails regex before testing sherlock
+    # 测试 Sherlock 前，先确认该用户名确实不符合站点的正则规则。
     assert pattern.match(invalid_handle) is None
     assert simple_query(sites_info=sites_info, site=site, username=invalid_handle) is QueryStatus.ILLEGAL
 

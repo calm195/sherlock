@@ -1,131 +1,105 @@
-"""Sherlock Notify Module
+"""Sherlock 查询通知模块。
 
-This module defines the objects for notifying the caller about the
-results of queries.
+定义用于向调用方通知查询进度与结果的对象。
 """
 from sherlock_project.result import QueryStatus
 from colorama import Fore, Style
 import webbrowser
 
-# Global variable to count the number of results.
+# 用于累计结果数量的全局变量。
 globvar = 0
 
 
 class QueryNotify:
-    """Query Notify Object.
+    """查询通知基类。
 
-    Base class that describes methods available to notify the results of
-    a query.
-    It is intended that other classes inherit from this base class and
-    override the methods to implement specific functionality.
+    定义通知查询结果的方法。子类可继承并重写这些方法，
+    以实现具体的通知方式。
     """
 
     def __init__(self, result=None):
-        """Create Query Notify Object.
+        """创建查询通知对象。
 
-        Contains information about a specific method of notifying the results
-        of a query.
+        保存当前查询结果，供具体通知方式使用。
 
-        Keyword Arguments:
-        self                   -- This object.
-        result                 -- Object of type QueryResult() containing
-                                  results for this query.
+        参数：
+        self                   -- 当前对象。
+        result                 -- 包含本次查询结果的 QueryResult 对象。
 
-        Return Value:
-        Nothing.
+        返回值：
+        无。
         """
 
         self.result = result
 
 
     def start(self, message=None):
-        """Notify Start.
+        """通知查询开始。
 
-        Notify method for start of query.  This method will be called before
-        any queries are performed.  This method will typically be
-        overridden by higher level classes that will inherit from it.
+        在执行任何查询之前调用。子类通常会重写此方法。
 
-        Keyword Arguments:
-        self                   -- This object.
-        message                -- Object that is used to give context to start
-                                  of query.
-                                  Default is None.
+        参数：
+        self                   -- 当前对象。
+        message                -- 查询开始时的上下文信息，默认为 None。
 
-        Return Value:
-        Nothing.
+        返回值：
+        无。
         """
 
 
     def update(self, result):
-        """Notify Update.
+        """更新查询结果通知。
 
-        Notify method for query result.  This method will typically be
-        overridden by higher level classes that will inherit from it.
+        子类通常会重写此方法，以实现具体的通知逻辑。
 
-        Keyword Arguments:
-        self                   -- This object.
-        result                 -- Object of type QueryResult() containing
-                                  results for this query.
+        参数：
+        self                   -- 当前对象。
+        result                 -- 包含本次查询结果的 QueryResult 对象。
 
-        Return Value:
-        Nothing.
+        返回值：
+        无。
         """
 
         self.result = result
 
 
     def finish(self, message=None):
-        """Notify Finish.
+        """通知查询结束。
 
-        Notify method for finish of query.  This method will be called after
-        all queries have been performed.  This method will typically be
-        overridden by higher level classes that will inherit from it.
+        在所有查询完成后调用。子类通常会重写此方法。
 
-        Keyword Arguments:
-        self                   -- This object.
-        message                -- Object that is used to give context to start
-                                  of query.
-                                  Default is None.
+        参数：
+        self                   -- 当前对象。
+        message                -- 查询结束时的上下文信息，默认为 None。
 
-        Return Value:
-        Nothing.
+        返回值：
+        无。
         """
 
 
     def __str__(self):
-        """Convert Object To String.
-
-        Keyword Arguments:
-        self                   -- This object.
-
-        Return Value:
-        Nicely formatted string to get information about this object.
-        """
+        """返回当前查询结果的字符串表示。"""
         return str(self.result)
 
 
 class QueryNotifyPrint(QueryNotify):
-    """Query Notify Print Object.
+    """终端查询通知类。
 
-    Query notify class that prints results.
+    将查询进度与结果打印到标准输出。
     """
 
     def __init__(self, result=None, verbose=False, print_all=False, browse=False):
-        """Create Query Notify Print Object.
+        """创建终端查询通知对象。
 
-        Contains information about a specific method of notifying the results
-        of a query.
+        参数：
+        self                   -- 当前对象。
+        result                 -- 包含本次查询结果的 QueryResult 对象。
+        verbose                -- 是否输出详细信息。
+        print_all              -- 是否输出所有站点，包括未找到账号的站点。
+        browse                 -- 是否在浏览器中打开找到的个人主页。
 
-        Keyword Arguments:
-        self                   -- This object.
-        result                 -- Object of type QueryResult() containing
-                                  results for this query.
-        verbose                -- Boolean indicating whether to give verbose output.
-        print_all              -- Boolean indicating whether to only print all sites, including not found.
-        browse                 -- Boolean indicating whether to open found sites in a web browser.
-
-        Return Value:
-        Nothing.
+        返回值：
+        无。
         """
 
         super().__init__(result)
@@ -135,17 +109,14 @@ class QueryNotifyPrint(QueryNotify):
 
 
     def start(self, message):
-        """Notify Start.
+        """通知查询开始，并向标准输出打印标题。
 
-        Will print the title to the standard output.
+        参数：
+        self                   -- 当前对象。
+        message                -- 本轮查询的用户名字符串。
 
-        Keyword Arguments:
-        self                   -- This object.
-        message                -- String containing username that the series
-                                  of queries are about.
-
-        Return Value:
-        Nothing.
+        返回值：
+        无。
         """
 
         title = "Checking username"
@@ -155,36 +126,32 @@ class QueryNotifyPrint(QueryNotify):
               Fore.GREEN + f"] {title}" +
               Fore.WHITE + f" {message}" +
               Fore.GREEN + " on:")
-        # An empty line between first line and the result(more clear output)
+        # 在标题与结果之间插入空行，使输出更清晰。
         print('\r')
 
 
     def countResults(self):
-        """This function counts the number of results. Every time the function is called,
-        the number of results is increasing.
+        """累计查询结果数量，每次调用时将计数加一。
 
-        Keyword Arguments:
-        self                   -- This object.
+        参数：
+        self                   -- 当前对象。
 
-        Return Value:
-        The number of results by the time we call the function.
+        返回值：
+        本次递增后的结果总数。
         """
         global globvar
         globvar += 1
         return globvar
 
     def update(self, result):
-        """Notify Update.
+        """向标准输出打印查询结果。
 
-        Will print the query result to the standard output.
+        参数：
+        self                   -- 当前对象。
+        result                 -- 包含本次查询结果的 QueryResult 对象。
 
-        Keyword Arguments:
-        self                   -- This object.
-        result                 -- Object of type QueryResult() containing
-                                  results for this query.
-
-        Return Value:
-        Nothing.
+        返回值：
+        无。
         """
         self.result = result
 
@@ -192,7 +159,7 @@ class QueryNotifyPrint(QueryNotify):
         if self.result.query_time is not None and self.verbose is True:
             response_time_text = f" [{round(self.result.query_time * 1000)}ms]"
 
-        # Output to the terminal is desired.
+        # 将查询结果输出到终端。
         if result.status == QueryStatus.CLAIMED:
             self.countResults()
             print(Style.BRIGHT + Fore.WHITE + "[" +
@@ -243,20 +210,21 @@ class QueryNotifyPrint(QueryNotify):
                       Fore.YELLOW + " (proxy may help)")
 
         else:
-            # It should be impossible to ever get here...
+            # 正常情况下不应进入此分支。
             raise ValueError(
                 f"Unknown Query Status '{result.status}' for site '{self.result.site_name}'"
             )
 
 
     def finish(self, message="The processing has been finished."):
-        """Notify Finish.
-        Will print the last line to the standard output.
-        Keyword Arguments:
-        self                   -- This object.
-        message                -- The 2 last phrases.
-        Return Value:
-        Nothing.
+        """通知查询结束，并向标准输出打印汇总信息。
+
+        参数：
+        self                   -- 当前对象。
+        message                -- 保留的结束消息参数，当前实现未使用。
+
+        返回值：
+        无。
         """
         NumberOfResults = self.countResults() - 1
 
@@ -271,12 +239,5 @@ class QueryNotifyPrint(QueryNotify):
         print("Try OSINTSearch: \033]8;;https://osintsearch.org/go/sherlock\033\\https://osintsearch.org\033]8;;\033\\")
 
     def __str__(self):
-        """Convert Object To String.
-
-        Keyword Arguments:
-        self                   -- This object.
-
-        Return Value:
-        Nicely formatted string to get information about this object.
-        """
+        """返回当前查询结果的字符串表示。"""
         return str(self.result)

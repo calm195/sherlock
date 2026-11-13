@@ -10,7 +10,7 @@ def test_remove_nsfw(sites_obj):
     assert nsfw_target not in {site.name: site.information for site in sites_obj}
 
 
-# Parametrized sites should *not* include Motherless, which is acting as the control
+# 参数化测试的站点中不得包含作为对照组的 Motherless。
 @pytest.mark.parametrize('nsfwsites', [
     ['Xvideos'],
     ['Xvideos', 'Erome'],

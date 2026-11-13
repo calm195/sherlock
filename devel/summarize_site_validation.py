@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-# This module summarizes the results of site validation tests queued by
-# workflow validate_modified_targets for presentation in Issue comments.
+# 汇总 validate_modified_targets 工作流发起的站点验证测试结果，
+# 供 Issue 评论展示。
 
 from defusedxml import ElementTree as ET
 import sys

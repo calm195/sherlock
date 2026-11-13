@@ -5,8 +5,8 @@ import subprocess
 
 class Interactives:
     def run_cli(args:str = "") -> str:
-        """Pass arguments to Sherlock as a normal user on the command line"""
-        # Adapt for platform differences (Windows likes to be special)
+        """模拟用户从命令行向 Sherlock 传入参数。"""
+        # 适配平台差异，尤其是 Windows 的命令调用方式。
         if platform.system() == "Windows":
             command:str = f"py -m sherlock_project {args}"
         else:
@@ -21,7 +21,7 @@ class Interactives:
 
 
     def walk_sherlock_for_files_with(pattern: str) -> list[str]:
-        """Check all files within the Sherlock package for matching patterns"""
+        """遍历 Sherlock 包中的文件，查找匹配指定模式的文件。"""
         pattern:re.Pattern = re.compile(pattern)
         matching_files:list[str] = []
         for root, dirs, files in os.walk("sherlock_project"):

@@ -1,7 +1,7 @@
 name: Update Site List
 
-# Trigger the workflow when changes are pushed to the main branch
-# and the changes include the sherlock_project/resources/data.json file
+# 向 master 分支推送变更，且变更涉及
+# sherlock_project/resources/data.json 时触发此工作流。
 on:
   push:
     branches:
@@ -11,24 +11,24 @@ on:
 
 jobs:
   sync-json-data:
-    # Use the latest version of Ubuntu as the runner environment
+    # 使用最新的 Ubuntu 运行环境。
     runs-on: ubuntu-latest
 
     steps:
-      # Check out the code at the specified pull request head commit
+      # 检出指定 PR 的最新提交；未提供该引用时使用默认引用。
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      # Install Python 3
+      # 安装 Python 3。
       - name: Install Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
-      # Execute the site_list.py Python script
+      # 执行 site-list.py 脚本。
       - name: Execute site-list.py
         run: python devel/site-list.py
 

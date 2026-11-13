@@ -2,8 +2,8 @@ name: Exclusions Updater
 
 on:
   schedule:
-    #- cron: '0 5 * * 0'  # Runs at 05:00 every Sunday
-    - cron: '0 5 * * *' # Runs at 05:00 every day
+    #- cron: '0 5 * * 0'  # 每周日 UTC 05:00 运行。
+    - cron: '0 5 * * *' # 每天 UTC 05:00 运行。
   workflow_dispatch:
 
 jobs:
@@ -46,14 +46,14 @@ jobs:
           git fetch origin exclusions || true
 
           if git show origin/exclusions:false_positive_exclusions.txt >/dev/null 2>&1; then
-            # If the exclusions branch and file exist, compare
+            # exclusions 分支及排除列表文件均存在时，比较文件内容。
             if git diff --quiet origin/exclusions -- false_positive_exclusions.txt; then
               echo "exclusions_changed=false" >> "$GITHUB_OUTPUT"
             else
               echo "exclusions_changed=true" >> "$GITHUB_OUTPUT"
             fi
           else
-            # If the exclusions branch or file do not exist, treat as changed
+            # exclusions 分支或排除列表文件不存在时，视为已有变更。
             echo "exclusions_changed=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -73,10 +73,10 @@ jobs:
 
           mv false_positive_exclusions.txt false_positive_exclusions.txt.tmp
 
-          git add -f false_positive_exclusions.txt.tmp # -f required to override .gitignore
+          git add -f false_positive_exclusions.txt.tmp # 使用 -f 跳过 .gitignore 的忽略规则。
           git stash push -m "stash false positive exclusion list" -- false_positive_exclusions.txt.tmp
 
-          git fetch origin exclusions || true # Allows creation of branch if deleted
+          git fetch origin exclusions || true # 分支已删除时，允许后续重新创建。
           git checkout -B exclusions origin/exclusions || (git checkout --orphan exclusions && git rm -rf .)
 
           git stash pop || true

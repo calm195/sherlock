@@ -1,8 +1,6 @@
-""" Sherlock Module
+"""Sherlock 包的初始化模块。
 
-This module contains the main logic to search for usernames at social
-networks.
-
+定义包名称、版本信息及发布版本查询地址。
 """
 
 from importlib.metadata import version as pkg_version, PackageNotFoundError
@@ -11,7 +9,7 @@ import tomli
 
 
 def get_version() -> str:
-    """Fetch the version number of the installed package."""
+    """获取已安装包的版本号；缺少安装元数据时读取 pyproject.toml。"""
     try:
         return pkg_version("sherlock_project")
     except PackageNotFoundError:
@@ -20,7 +18,7 @@ def get_version() -> str:
             pyproject_data = tomli.load(f)
         return pyproject_data["project"]["version"]
 
-# This variable is only used to check for ImportErrors induced by users running as script rather than as module or package
+# 此变量仅用于检测直接运行脚本（未按模块或包运行）时产生的 ImportError。
 import_error_test_var = None
 
 __shortname__   = "Sherlock"

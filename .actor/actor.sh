@@ -5,7 +5,7 @@ echo "INPUT: $INPUT"
 sherlock $INPUT
 
 for username in $INPUT; do
-  # escape the special meaning leading characters 
+  # 转义具有特殊含义的前导字符。
   # https://github.com/jpmens/jo/blob/master/jo.md#description
   safe_username=$(echo $username | sed 's/^@/\\@/' | sed 's/^:/\\:/' | sed 's/%/\\%/')
   echo "pushing results for username: $username, content:"

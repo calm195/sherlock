@@ -1,7 +1,6 @@
-"""Sherlock Sites Information Module
+"""Sherlock 站点信息模块。
 
-This module supports storing information about websites.
-This is the raw data that will be used to search for usernames.
+保存网站信息，为用户名查询提供原始数据。
 """
 import json
 import requests
@@ -14,41 +13,26 @@ EXCLUSIONS_URL = "https://raw.githubusercontent.com/sherlock-project/sherlock/re
 class SiteInformation:
     def __init__(self, name, url_home, url_username_format, username_claimed,
                 information, is_nsfw, username_unclaimed=secrets.token_urlsafe(10)):
-        """Create Site Information Object.
+        """创建单个站点的信息对象。
 
-        Contains information about a specific website.
+        参数：
+        self                   -- 当前对象。
+        name                   -- 站点名称字符串。
+        url_home               -- 站点首页 URL 字符串。
+        url_username_format    -- 用户个人主页的 URL 模板字符串。
+                                  用 "{}" 标记需要替换为用户名的位置。
+                                  例如，"https://somesite.com/users/{}" 表示
+                                  用户个人主页位于该站点的 /users/ 路径下。
+        username_claimed       -- 已知在该站点注册的用户名字符串。
+        username_unclaimed     -- 预留的未注册用户名参数；当前实现不使用传入值，
+                                  而是随机生成用于测试的用户名。
+        information            -- 包含站点全部已知信息的字典，
+                                  包括检测用户名是否存在所需的自定义规则。
+                                  本对象仅保存这些信息，供后续检测使用。
+        is_nsfw                -- 是否为含有不适宜工作场所内容的站点（NSFW）。
 
-        Keyword Arguments:
-        self                   -- This object.
-        name                   -- String which identifies site.
-        url_home               -- String containing URL for home of site.
-        url_username_format    -- String containing URL for Username format
-                                  on site.
-                                  NOTE:  The string should contain the
-                                         token "{}" where the username should
-                                         be substituted.  For example, a string
-                                         of "https://somesite.com/users/{}"
-                                         indicates that the individual
-                                         usernames would show up under the
-                                         "https://somesite.com/users/" area of
-                                         the website.
-        username_claimed       -- String containing username which is known
-                                  to be claimed on website.
-        username_unclaimed     -- String containing username which is known
-                                  to be unclaimed on website.
-        information            -- Dictionary containing all known information
-                                  about website.
-                                  NOTE:  Custom information about how to
-                                         actually detect the existence of the
-                                         username will be included in this
-                                         dictionary.  This information will
-                                         be needed by the detection method,
-                                         but it is only recorded in this
-                                         object for future use.
-        is_nsfw                -- Boolean indicating if site is Not Safe For Work.
-
-        Return Value:
-        Nothing.
+        返回值：
+        无。
         """
 
         self.name = name
@@ -62,14 +46,7 @@ class SiteInformation:
 
 
     def __str__(self):
-        """Convert Object To String.
-
-        Keyword Arguments:
-        self                   -- This object.
-
-        Return Value:
-        Nicely formatted string to get information about this object.
-        """
+        """返回包含站点名称和首页 URL 的字符串。"""
 
         return f"{self.name} ({self.url_home})"
 
@@ -81,47 +58,33 @@ class SitesInformation:
             honor_exclusions: bool = True,
             do_not_exclude: list[str] = [],
         ):
-        """Create Sites Information Object.
+        """创建包含所有支持站点的信息对象。
 
-        Contains information about all supported websites.
+        参数：
+        self                   -- 当前对象。
+        data_file_path         -- JSON 数据文件路径或 URL 字符串。
+                                  支持以下形式：
+                                  * 绝对路径，例如 "c:/stuff/data.json"。
+                                  * 相对于当前工作目录的路径，例如 "data.json"。
+                                  * URL，例如 "https://example.com/data.json"
+                                    或 "http://example.com/data.json"。
+                                  加载或解析失败时抛出异常。
+                                  未指定时使用默认的远程站点清单。
+        honor_exclusions       -- 是否应用远程排除列表，默认为 True。
+        do_not_exclude         -- 即使在排除列表中，也需要保留的站点名称列表。
 
-        Keyword Arguments:
-        self                   -- This object.
-        data_file_path         -- String which indicates path to data file.
-                                  The file name must end in ".json".
-
-                                  There are 3 possible formats:
-                                   * Absolute File Format
-                                     For example, "c:/stuff/data.json".
-                                   * Relative File Format
-                                     The current working directory is used
-                                     as the context.
-                                     For example, "data.json".
-                                   * URL Format
-                                     For example,
-                                     "https://example.com/data.json", or
-                                     "http://example.com/data.json".
-
-                                  An exception will be thrown if the path
-                                  to the data file is not in the expected
-                                  format, or if there was any problem loading
-                                  the file.
-
-                                  If this option is not specified, then a
-                                  default site list will be used.
-
-        Return Value:
-        Nothing.
+        返回值：
+        无。
         """
 
         if not data_file_path:
-            # The default data file is the live data.json which is in the GitHub repo. The reason why we are using
-            # this instead of the local one is so that the user has the most up-to-date data. This prevents
-            # users from creating issue about false positives which has already been fixed or having outdated data
+            # 默认从远程加载最新的站点清单，
+            # 使用户及时获得站点规则更新，避免因本地数据过时
+            # 而重复报告已经修复的误报问题。
             data_file_path = MANIFEST_URL
 
         if data_file_path.lower().startswith("http"):
-            # Reference is to a URL.
+            # 数据来源为 URL。
             try:
                 response = requests.get(url=data_file_path, timeout=30)
             except Exception as error:
@@ -141,7 +104,7 @@ class SitesInformation:
                 )
 
         else:
-            # Reference is to a file.
+            # 数据来源为本地文件。
             try:
                 with open(data_file_path, "r", encoding="utf-8") as file:
                     try:
@@ -176,13 +139,13 @@ class SitesInformation:
                             pass
 
             except Exception:
-                # If there was any problem loading the exclusions, just continue without them
+                # 排除列表加载失败时，继续执行，但不应用排除规则。
                 print("Warning: Could not load exclusions, continuing without them.")
                 honor_exclusions = False
 
         self.sites = {}
 
-        # Add all site information from the json file to internal site list.
+        # 将 JSON 文件中的所有站点信息加入内部站点列表。
         for site_name in site_data:
             try:
 
@@ -204,14 +167,14 @@ class SitesInformation:
 
 
     def remove_nsfw_sites(self, do_not_remove: list = []):
-        """
-        Remove NSFW sites from the sites, if isNSFW flag is true for site
+        """移除标记了 isNSFW 的站点，保留明确指定的例外。
 
-        Keyword Arguments:
-        self                   -- This object.
+        参数：
+        self                   -- 当前对象。
+        do_not_remove          -- 需要保留的站点名称列表，比较时忽略大小写。
 
-        Return Value:
-        None
+        返回值：
+        无。
         """
         sites = {}
         do_not_remove = [site.casefold() for site in do_not_remove]
@@ -222,37 +185,16 @@ class SitesInformation:
         self.sites =  sites
 
     def site_name_list(self):
-        """Get Site Name List.
-
-        Keyword Arguments:
-        self                   -- This object.
-
-        Return Value:
-        List of strings containing names of sites.
-        """
+        """返回按名称排序的站点名称字符串列表。"""
 
         return sorted([site.name for site in self], key=str.lower)
 
     def __iter__(self):
-        """Iterator For Object.
-
-        Keyword Arguments:
-        self                   -- This object.
-
-        Return Value:
-        Iterator for sites object.
-        """
+        """迭代站点集合，依次返回各站点的信息对象。"""
 
         for site_name in self.sites:
             yield self.sites[site_name]
 
     def __len__(self):
-        """Length For Object.
-
-        Keyword Arguments:
-        self                   -- This object.
-
-        Return Value:
-        Length of sites object.
-        """
+        """返回站点集合中的站点数量。"""
         return len(self.sites)

@@ -1,10 +1,8 @@
 #! /usr/bin/env python3
 
-"""
-Sherlock: Find Usernames Across Social Networks Module
+"""Sherlock 跨社交网络用户名查询模块。
 
-This module contains the main logic to search for usernames at social
-networks.
+实现查询各社交网站用户名的主要逻辑。
 """
 
 import sys
@@ -47,61 +45,58 @@ from argparse import ArgumentTypeError
 
 class SherlockFuturesSession(FuturesSession):
     def request(self, method, url, hooks=None, *args, **kwargs):
-        """Request URL.
+        """请求指定 URL。
 
-        This extends the FuturesSession request method to calculate a response
-        time metric to each request.
-
-        It is taken (almost) directly from the following Stack Overflow answer:
+        扩展 FuturesSession 的 request 方法，为每个请求记录响应耗时。
+        实现参考：
         https://github.com/ross/requests-futures#working-in-the-background
 
-        Keyword Arguments:
-        self                   -- This object.
-        method                 -- String containing method desired for request.
-        url                    -- String containing URL for request.
-        hooks                  -- Dictionary containing hooks to execute after
-                                  request finishes.
-        args                   -- Arguments.
-        kwargs                 -- Keyword arguments.
+        参数：
+        self                   -- 当前对象。
+        method                 -- HTTP 请求方法字符串。
+        url                    -- 请求的 URL 字符串。
+        hooks                  -- 保存响应处理钩子的字典。
+        args                   -- 其他位置参数。
+        kwargs                 -- 其他关键字参数。
 
-        Return Value:
-        Request object.
+        返回值：
+        用于获取请求响应的 Future 对象。
         """
-        # Record the start time for the request.
+        # 记录请求的开始时间。
         if hooks is None:
             hooks = {}
         start = monotonic()
 
         def response_time(resp, *args, **kwargs):
-            """Response Time Hook.
+            """记录响应耗时的钩子。
 
-            Keyword Arguments:
-            resp                   -- Response object.
-            args                   -- Arguments.
-            kwargs                 -- Keyword arguments.
+            参数：
+            resp                   -- 响应对象。
+            args                   -- 其他位置参数。
+            kwargs                 -- 其他关键字参数。
 
-            Return Value:
-            Nothing.
+            返回值：
+            无。
             """
             resp.elapsed = monotonic() - start
 
 
-        # Install hook to execute when response completes.
-        # Make sure that the time measurement hook is first, so we will not
-        # track any later hook's execution time.
+        # 注册在收到响应时执行的钩子。
+        # 将计时钩子放在首位，
+        # 避免将后续钩子的执行时间计入响应耗时。
         try:
             if isinstance(hooks["response"], list):
                 hooks["response"].insert(0, response_time)
             elif isinstance(hooks["response"], tuple):
-                # Convert tuple to list and insert time measurement hook first.
+                # 将元组转换为列表，并在首位插入计时钩子。
                 hooks["response"] = list(hooks["response"])
                 hooks["response"].insert(0, response_time)
             else:
-                # Must have previously contained a single hook function,
-                # so convert to list.
+                # 原配置为单个钩子函数，
+                # 将其转换为列表。
                 hooks["response"] = [response_time, hooks["response"]]
         except KeyError:
-            # No response hook was already defined, so install it ourselves.
+            # 尚未定义响应钩子，直接注册计时钩子。
             hooks["response"] = [response_time]
 
         return super(SherlockFuturesSession, self).request(
@@ -110,7 +105,7 @@ class SherlockFuturesSession(FuturesSession):
 
 
 def get_response(request_future, error_type, social_network):
-    # Default for Response object if some failure occurs.
+    # 请求失败时，响应对象默认为 None。
     response = None
 
     error_context = "General Unknown Error"
@@ -118,7 +113,7 @@ def get_response(request_future, error_type, social_network):
     try:
         response = request_future.result()
         if response.status_code:
-            # Status code exists in response object
+            # 响应对象中存在有效的状态码。
             error_context = None
     except requests.exceptions.HTTPError as errh:
         error_context = "HTTP Error"
@@ -153,8 +148,7 @@ def interpolate_string(input_object, username):
 
 
 def check_for_parameter(username):
-    """checks if {?} exists in the username
-    if exist it means that sherlock is looking for more multiple username"""
+    """检查用户名是否包含 {?} 占位符，以判断是否需要生成多个用户名。"""
     return "{?}" in username
 
 
@@ -162,7 +156,7 @@ checksymbols = ["_", "-", "."]
 
 
 def multiple_usernames(username):
-    """replace the parameter with with symbols and return a list of usernames"""
+    """用不同符号替换占位符，并返回生成的用户名列表。"""
     allUsernames = []
     for i in checksymbols:
         allUsernames.append(username.replace("{?}", i))
@@ -177,80 +171,70 @@ def sherlock(
     proxy: Optional[str] = None,
     timeout: int = 60,
 ) -> dict[str, dict[str, str | QueryResult]]:
-    """Run Sherlock Analysis.
+    """执行 Sherlock 查询，检查用户名是否存在于各社交网站。
 
-    Checks for existence of username on various social media sites.
+    参数：
+    username               -- 待查询的用户名字符串。
+    site_data              -- 包含所有待查询站点信息的字典。
+    query_notify           -- QueryNotify 或其子类对象，用于通知查询结果。
+    dump_response          -- 是否打印响应内容以便调试，默认为 False。
+    proxy                  -- 代理 URL 字符串，默认为 None。
+    timeout                -- 请求超时时间，单位为秒，默认为 60。
 
-    Keyword Arguments:
-    username               -- String indicating username that report
-                              should be created against.
-    site_data              -- Dictionary containing all of the site data.
-    query_notify           -- Object with base type of QueryNotify().
-                              This will be used to notify the caller about
-                              query results.
-    proxy                  -- String indicating the proxy URL
-    timeout                -- Time in seconds to wait before timing out request.
-                              Default is 60 seconds.
-
-    Return Value:
-    Dictionary containing results from report. Key of dictionary is the name
-    of the social network site, and the value is another dictionary with
-    the following keys:
-        url_main:      URL of main site.
-        url_user:      URL of user on site (if account exists).
-        status:        QueryResult() object indicating results of test for
-                       account existence.
-        http_status:   HTTP status code of query which checked for existence on
-                       site.
-        response_text: Text that came back from request.  May be None if
-                       there was an HTTP error when checking for existence.
+    返回值：
+    以站点名称为键的结果字典，每个值也是字典，包含以下字段：
+        url_main:      站点首页 URL。
+        url_user:      用户的个人主页 URL（若账号存在）。
+        status:        表示账号存在性检测结果的 QueryResult 对象。
+        http_status:   本次请求的 HTTP 状态码；无法获取时为占位字符串。
+        response_text: 响应正文编码后的字节数据；无法获取时为空字符串。
     """
 
-    # Notify caller that we are starting the query.
+    # 通知调用方开始查询。
     query_notify.start(username)
 
-    # Normal requests
+    # 创建基础 HTTP 会话。
     underlying_session = requests.session()
 
-    # Limit number of workers to 20.
-    # This is probably vastly overkill.
+    # 将工作线程数限制为最多 20 个。
+    # 该上限通常已足够处理并发请求。
     if len(site_data) >= 20:
         max_workers = 20
     else:
         max_workers = len(site_data)
 
-    # Create multi-threaded session for all requests.
+    # 为所有请求创建多线程会话。
     session = SherlockFuturesSession(
         max_workers=max_workers, session=underlying_session
     )
 
-    # Results from analysis of all sites
+    # 保存所有站点的分析结果。
     results_total = {}
 
-    # First create futures for all requests. This allows for the requests to run in parallel
+    # 先为所有请求创建 Future，使请求可以并发执行。
     for social_network, net_info in site_data.items():
-        # Results from analysis of this specific site
+        # 保存当前站点的分析结果。
         results_site = {"url_main": net_info.get("urlMain")}
 
-        # Record URL of main site
+        # 记录站点首页 URL。
 
-        # A user agent is needed because some sites don't return the correct
-        # information since they think that we are bots (Which we actually are...)
+        # 设置 User-Agent，因为部分站点识别出自动化请求后
+        # 不会返回正常页面内容。
         headers = {
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:129.0) Gecko/20100101 Firefox/129.0",
         }
 
         if "headers" in net_info:
-            # Override/append any extra headers required by a given site.
+            # 覆盖或补充当前站点要求的请求头。
             headers.update(net_info["headers"])
 
-        # URL of user on site (if it exists)
+        # 用户在站点上的个人主页 URL（若账号存在）。
         url = interpolate_string(net_info["url"], username.replace(' ', '%20'))
 
-        # Don't make request if username is invalid for the site
+        # 用户名不符合站点规则时，不发送请求。
         regex_check = net_info.get("regexCheck")
         if regex_check and re.search(regex_check, username) is None:
-            # No need to do the check at the site: this username is not allowed.
+            # 站点不接受此用户名，无需发送请求进行检测。
             results_site["status"] = QueryResult(
                 username, social_network, url, QueryStatus.ILLEGAL
             )
@@ -259,7 +243,7 @@ def sherlock(
             results_site["response_text"] = ""
             query_notify.update(results_site["status"])
         else:
-            # URL of user on site (if it exists)
+            # 用户在站点上的个人主页 URL（若账号存在）。
             results_site["url_user"] = url
             url_probe = net_info.get("urlProbe")
             request_method = net_info.get("request_method")
@@ -282,36 +266,36 @@ def sherlock(
                 request_payload = interpolate_string(request_payload, username)
 
             if url_probe is None:
-                # Probe URL is normal one seen by people out on the web.
+                # 未配置专用探测地址，使用用户可访问的个人主页 URL。
                 url_probe = url
             else:
-                # There is a special URL for probing existence separate
-                # from where the user profile normally can be found.
+                # 站点配置了专用于检测账号是否存在的 URL，
+                # 该地址与常规个人主页地址不同。
                 url_probe = interpolate_string(url_probe, username)
 
             if request is None:
                 if net_info["errorType"] == "status_code":
-                    # In most cases when we are detecting by status code,
-                    # it is not necessary to get the entire body:  we can
-                    # detect fine with just the HEAD response.
+                    # 按状态码检测时，通常无需获取完整响应正文。
+                    # 只需发送 HEAD 请求，
+                    # 即可根据响应状态码进行判断。
                     request = session.head
                 else:
-                    # Either this detect method needs the content associated
-                    # with the GET response, or this specific website will
-                    # not respond properly unless we request the whole page.
+                    # 其他检测方式可能需要 GET 响应正文，
+                    # 或者站点只有在请求完整页面时
+                    # 才会正确响应。
                     request = session.get
 
             if net_info["errorType"] == "response_url":
-                # Site forwards request to a different URL if username not
-                # found.  Disallow the redirect so we can capture the
-                # http status from the original URL request.
+                # 账号不存在时，站点会重定向到其他 URL。
+                # 禁止自动重定向，
+                # 以便读取原始请求的 HTTP 状态码。
                 allow_redirects = False
             else:
-                # Allow whatever redirect that the site wants to do.
-                # The final result of the request will be what is available.
+                # 允许站点重定向。
+                # 使用重定向结束后的最终响应进行判断。
                 allow_redirects = True
 
-            # This future starts running the request in a new thread, doesn't block the main thread
+            # Future 在工作线程中执行请求，不阻塞主线程。
             if proxy is not None:
                 proxies = {"http": proxy, "https": proxy}
                 future = request(
@@ -331,42 +315,42 @@ def sherlock(
                     json=request_payload,
                 )
 
-            # Store future in data for access later
+            # 保存 Future，供后续读取请求结果。
             net_info["request_future"] = future
 
-        # Add this site's results into final dictionary with all the other results.
+        # 将当前站点的结果加入汇总字典。
         results_total[social_network] = results_site
 
-    # Open the file containing account links
+    # 遍历各站点并收集请求结果。
     for social_network, net_info in site_data.items():
-        # Retrieve results again
+        # 取回当前站点已记录的结果。
         results_site = results_total.get(social_network)
 
-        # Retrieve other site information again
+        # 取回该站点的其他信息。
         url = results_site.get("url_user")
         status = results_site.get("status")
         if status is not None:
-            # We have already determined the user doesn't exist here
+            # 已根据用户名格式规则确定结果，无需等待请求。
             continue
 
-        # Get the expected error type
+        # 获取站点配置的错误检测方式。
         error_type = net_info["errorType"]
         if isinstance(error_type, str):
             error_type: list[str] = [error_type]
 
-        # Retrieve future and ensure it has finished
+        # 取回 Future，并等待请求完成。
         future = net_info["request_future"]
         r, error_text, exception_text = get_response(
             request_future=future, error_type=error_type, social_network=social_network
         )
 
-        # Get response time for response of our request.
+        # 获取本次请求的响应耗时。
         try:
             response_time = r.elapsed
         except AttributeError:
             response_time = None
 
-        # Attempt to get request information
+        # 尝试读取请求的响应信息。
         try:
             http_status = r.status_code
         except Exception:
@@ -379,14 +363,14 @@ def sherlock(
         query_status = QueryStatus.UNKNOWN
         error_context = None
 
-        # As WAFs advance and evolve, they will occasionally block Sherlock and
-        # lead to false positives and negatives. Fingerprints should be added
-        # here to filter results that fail to bypass WAFs. Fingerprints should
-        # be highly targetted. Comment at the end of each fingerprint to
-        # indicate target and date fingerprinted.
+        # Web 应用防火墙（WAF）的规则会持续更新，可能拦截 Sherlock，
+        # 从而导致误报或漏报。在此添加具有明确特征的响应指纹，
+        # 用于识别并过滤被 WAF 拦截的结果。
+        # 指纹应尽量精确，并在每条指纹末尾注明
+        # 对应的防护服务及采集日期。
         WAFHitMsgs = [
             r'.loading-spinner{visibility:hidden}body.no-js .challenge-running{display:none}body.dark{background-color:#222;color:#d9d9d9}body.dark a{color:#fff}body.dark a:hover{color:#ee730a;text-decoration:underline}body.dark .lds-ring div{border-color:#999 transparent transparent}body.dark .font-red{color:#b20f03}body.dark', # 2024-05-13 Cloudflare
-            r'<span id="challenge-error-text">', # 2024-11-11 Cloudflare error page
+            r'<span id="challenge-error-text">', # 2024-11-11 Cloudflare 错误页面
             r'AwsWafIntegration.forceRefreshToken', # 2024-11-11 Cloudfront (AWS)
             r'{return l.onPageView}}),Object.defineProperty(r,"perimeterxIdentifiers",{enumerable:' # 2024-04-09 PerimeterX / Human Security
         ]
@@ -403,22 +387,22 @@ def sherlock(
                 query_status = QueryStatus.UNKNOWN
             else:
                 if "message" in error_type:
-                    # error_flag True denotes no error found in the HTML
-                    # error_flag False denotes error found in the HTML
+                    # error_flag 为 True 表示 HTML 中未发现错误提示。
+                    # error_flag 为 False 表示 HTML 中发现了错误提示。
                     error_flag = True
                     errors = net_info.get("errorMsg")
-                    # errors will hold the error message
-                    # it can be string or list
-                    # by isinstance method we can detect that
-                    # and handle the case for strings as normal procedure
-                    # and if its list we can iterate the errors
+                    # errors 保存用于判断账号不存在的错误提示，
+                    # 可以是字符串或列表。
+                    # 使用 isinstance 判断类型：
+                    # 字符串按单条提示处理，
+                    # 列表则逐项检查。
                     if isinstance(errors, str):
-                        # Checks if the error message is in the HTML
-                        # if error is present we will set flag to False
+                        # 检查 HTML 中是否包含错误提示；
+                        # 若存在，则将标志设为 False。
                         if errors in r.text:
                             error_flag = False
                     else:
-                        # If it's list, it will iterate all the error message
+                        # 对列表中的错误提示逐项检查。
                         for error in errors:
                             if error in r.text:
                                 error_flag = False
@@ -432,7 +416,7 @@ def sherlock(
                     error_codes = net_info.get("errorCode")
                     query_status = QueryStatus.CLAIMED
 
-                    # Type consistency, allowing for both singlets and lists in manifest
+                    # 统一为列表，兼容站点清单中的单个错误码和错误码列表。
                     if isinstance(error_codes, int):
                         error_codes = [error_codes]
 
@@ -442,11 +426,11 @@ def sherlock(
                         query_status = QueryStatus.AVAILABLE
 
                 if "response_url" in error_type and query_status is not QueryStatus.AVAILABLE:
-                    # For this detection method, we have turned off the redirect.
-                    # So, there is no need to check the response URL: it will always
-                    # match the request.  Instead, we will ensure that the response
-                    # code indicates that the request was successful (i.e. no 404, or
-                    # forward to some odd redirect).
+                    # 单独使用 response_url 检测时，前面已禁止自动重定向。
+                    # 此时响应 URL 与请求 URL 一致，无需比较。
+                    # 根据响应状态码判断请求是否成功：
+                    # 404 等错误状态和重定向状态
+                    # 均视为账号不存在。
                     if 200 <= r.status_code < 300:
                         query_status = QueryStatus.CLAIMED
                     else:
@@ -480,7 +464,7 @@ def sherlock(
             print("VERDICT       : " + str(query_status))
             print("+++++++++++++++++++++")
 
-        # Notify caller about results of query.
+        # 将查询结果通知调用方。
         result: QueryResult = QueryResult(
             username=username,
             site_name=social_network,
@@ -491,32 +475,29 @@ def sherlock(
         )
         query_notify.update(result)
 
-        # Save status of request
+        # 保存请求的查询状态。
         results_site["status"] = result
 
-        # Save results from request
+        # 保存请求的响应结果。
         results_site["http_status"] = http_status
         results_site["response_text"] = response_text
 
-        # Add this site's results into final dictionary with all of the other results.
+        # 将当前站点的结果加入汇总字典。
         results_total[social_network] = results_site
 
     return results_total
 
 
 def timeout_check(value):
-    """Check Timeout Argument.
+    """检查超时参数是否有效。
 
-    Checks timeout for validity.
+    参数：
+    value                  -- 请求超时时间，单位为秒。
 
-    Keyword Arguments:
-    value                  -- Time in seconds to wait before timing out request.
+    返回值：
+    表示超时时间（秒）的浮点数。
 
-    Return Value:
-    Floating point number representing the time (in seconds) that should be
-    used for the timeout.
-
-    NOTE:  Will raise an exception if the timeout in invalid.
+    注意：无法转换为浮点数或不大于零时抛出异常。
     """
 
     float_value = float(value)
@@ -530,9 +511,9 @@ def timeout_check(value):
 
 
 def handler(signal_received, frame):
-    """Exit gracefully without throwing errors
+    """正常退出程序，避免输出异常堆栈。
 
-    Source: https://www.devdungeon.com/content/python-catch-sigint-ctrl-c
+    参考来源：https://www.devdungeon.com/content/python-catch-sigint-ctrl-c
     """
     sys.exit(0)
 
@@ -695,10 +676,10 @@ def main():
 
     args = parser.parse_args()
 
-    # If the user presses CTRL-C, exit gracefully without throwing errors
+    # 用户按下 Ctrl+C 时正常退出，避免输出异常堆栈。
     signal.signal(signal.SIGINT, handler)
 
-    # Check for newer version of Sherlock. If it exists, let the user know about it
+    # 检查 Sherlock 是否有新版本，并在发现更新时提示用户。
     try:
         latest_release_raw = requests.get(forge_api_latest_release, timeout=10).text
         latest_release_json = json_loads(latest_release_raw)
@@ -713,28 +694,28 @@ def main():
     except Exception as error:
         print(f"A problem occurred while checking for an update: {error}")
 
-    # Make prompts
+    # 输出运行提示。
     if args.proxy is not None:
         print("Using the proxy: " + args.proxy)
 
     if args.no_color:
-        # Disable color output.
+        # 禁用彩色输出。
         init(strip=True, convert=False)
     else:
-        # Enable color output.
+        # 启用彩色输出。
         init(autoreset=True)
 
-    # Check if both output methods are entered as input.
+    # 检查是否同时指定了两种互斥的输出路径选项。
     if args.output is not None and args.folderoutput is not None:
         print("You can only use one of the output methods.")
         sys.exit(1)
 
-    # Check validity for single username output.
+    # 检查指定输出文件时是否只输入了一个用户名。
     if args.output is not None and len(args.username) != 1:
         print("You can only use --output with a single username")
         sys.exit(1)
 
-    # Create object with all information about sites we are aware of.
+    # 创建包含所有已知站点信息的对象。
     try:
         if args.local:
             sites = SitesInformation(
@@ -744,14 +725,14 @@ def main():
         else:
             json_file_location = args.json_file
             if args.json_file:
-                # If --json parameter is a number, interpret it as a pull request number
+                # --json 参数为数字时，将其视为拉取请求编号。
                 if args.json_file.isnumeric():
                     pull_number = args.json_file
                     pull_url = f"https://api.github.com/repos/sherlock-project/sherlock/pulls/{pull_number}"
                     pull_request_raw = requests.get(pull_url, timeout=10).text
                     pull_request_json = json_loads(pull_request_raw)
 
-                    # Check if it's a valid pull request
+                    # 检查拉取请求是否有效。
                     if "message" in pull_request_json:
                         print(f"ERROR: Pull request #{pull_number} not found.")
                         sys.exit(1)
@@ -771,16 +752,16 @@ def main():
     if not args.nsfw:
         sites.remove_nsfw_sites(do_not_remove=args.site_list)
 
-    # Create original dictionary from SitesInformation() object.
-    # Eventually, the rest of the code will be updated to use the new object
-    # directly, but this will glue the two pieces together.
+    # 将 SitesInformation 对象转换为原有的字典格式。
+    # 后续代码尚未全部改为直接使用站点对象，
+    # 此处用于衔接两种数据结构。
     site_data_all = {site.name: site.information for site in sites}
     if args.site_list == []:
-        # Not desired to look at a sub-set of sites
+        # 未指定站点子集，查询所有已加载的站点。
         site_data = site_data_all
     else:
-        # User desires to selectively run queries on a sub-set of the site list.
-        # Make sure that the sites are supported & build up pruned site database.
+        # 用户只要求查询部分站点。
+        # 确认这些站点受支持，并构建筛选后的站点字典。
         site_data = {}
         site_missing = []
         for site in args.site_list:
@@ -790,7 +771,7 @@ def main():
                     site_data[existing_site] = site_data_all[existing_site]
                     counter += 1
             if counter == 0:
-                # Build up list of sites not supported for future error message.
+                # 记录不受支持的站点，供后续错误提示使用。
                 site_missing.append(f"'{site}'")
 
         if site_missing:
@@ -799,12 +780,12 @@ def main():
         if not site_data:
             sys.exit(1)
 
-    # Create notify object for query results.
+    # 创建查询结果通知对象。
     query_notify = QueryNotifyPrint(
         result=None, verbose=args.verbose, print_all=args.print_all, browse=args.browse
     )
 
-    # Run report on all specified users.
+    # 对所有指定的用户名执行查询。
     all_usernames = []
     for username in args.username:
         if check_for_parameter(username):
@@ -825,8 +806,8 @@ def main():
         if args.output:
             result_file = args.output
         elif args.folderoutput:
-            # The usernames results should be stored in a targeted folder.
-            # If the folder doesn't exist, create it first
+            # 将用户名的查询结果保存到指定目录。
+            # 目录不存在时先创建。
             os.makedirs(args.folderoutput, exist_ok=True)
             result_file = os.path.join(args.folderoutput, f"{username}.txt")
         else:
@@ -845,8 +826,8 @@ def main():
         if args.csv:
             result_file = f"{username}.csv"
             if args.folderoutput:
-                # The usernames results should be stored in a targeted folder.
-                # If the folder doesn't exist, create it first
+                # 将用户名的查询结果保存到指定目录。
+                # 目录不存在时先创建。
                 os.makedirs(args.folderoutput, exist_ok=True)
                 result_file = os.path.join(args.folderoutput, result_file)
 

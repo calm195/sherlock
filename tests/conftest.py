@@ -37,7 +37,7 @@ def pytest_generate_tests(metafunc):
     if "chunked_sites" in metafunc.fixturenames:
         sites_info = fetch_local_manifest(honor_exclusions=False)
 
-        # Ingest and apply site selections
+        # 读取并应用待测试站点的筛选条件。
         site_filter: str | None = metafunc.config.getoption("--chunked-sites")
         if site_filter:
             selected_sites: list[str] = [site.strip() for site in site_filter.split(",")]

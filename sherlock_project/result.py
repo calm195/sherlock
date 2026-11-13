@@ -1,65 +1,49 @@
-"""Sherlock Result Module
+"""Sherlock 查询结果模块。
 
-This module defines various objects for recording the results of queries.
+定义用于记录查询状态与结果的对象。
 """
 from enum import Enum
 
 
 class QueryStatus(Enum):
-    """Query Status Enumeration.
+    """查询状态枚举。
 
-    Describes status of query about a given username.
+    描述针对指定用户名的查询状态。
     """
-    CLAIMED   = "Claimed"   # Username Detected
-    AVAILABLE = "Available" # Username Not Detected
-    UNKNOWN   = "Unknown"   # Error Occurred While Trying To Detect Username
-    ILLEGAL   = "Illegal"   # Username Not Allowable For This Site
-    WAF       = "WAF"       # Request blocked by WAF (i.e. Cloudflare)
+    CLAIMED   = "Claimed"   # 检测到用户名。
+    AVAILABLE = "Available" # 未检测到用户名。
+    UNKNOWN   = "Unknown"   # 检测用户名时发生错误。
+    ILLEGAL   = "Illegal"   # 用户名不符合该站点的格式要求。
+    WAF       = "WAF"       # 请求被 Web 应用防火墙（如 Cloudflare）拦截。
 
     def __str__(self):
-        """Convert Object To String.
-
-        Keyword Arguments:
-        self                   -- This object.
-
-        Return Value:
-        Nicely formatted string to get information about this object.
-        """
+        """返回查询状态的字符串值。"""
         return self.value
 
 class QueryResult():
-    """Query Result Object.
+    """查询结果对象。
 
-    Describes result of query about a given username.
+    描述针对指定用户名的查询结果。
     """
     def __init__(self, username, site_name, site_url_user, status,
                  query_time=None, context=None):
-        """Create Query Result Object.
+        """创建查询结果对象。
 
-        Contains information about a specific method of detecting usernames on
-        a given type of web sites.
+        保存指定站点上用户名存在性检测的结果。
 
-        Keyword Arguments:
-        self                   -- This object.
-        username               -- String indicating username that query result
-                                  was about.
-        site_name              -- String which identifies site.
-        site_url_user          -- String containing URL for username on site.
-                                  NOTE:  The site may or may not exist:  this
-                                         just indicates what the name would
-                                         be, if it existed.
-        status                 -- Enumeration of type QueryStatus() indicating
-                                  the status of the query.
-        query_time             -- Time (in seconds) required to perform query.
-                                  Default of None.
-        context                -- String indicating any additional context
-                                  about the query.  For example, if there was
-                                  an error, this might indicate the type of
-                                  error that occurred.
-                                  Default of None.
+        参数：
+        self                   -- 当前对象。
+        username               -- 本次查询的用户名字符串。
+        site_name              -- 站点名称字符串。
+        site_url_user          -- 用户在该站点的个人主页 URL。
+                                  此地址不保证账号存在，仅表示账号存在时的地址。
+        status                 -- 表示查询状态的 QueryStatus 枚举值。
+        query_time             -- 查询耗时，单位为秒，默认为 None。
+        context                -- 查询的额外上下文字符串，例如发生的错误类型。
+                                  默认为 None。
 
-        Return Value:
-        Nothing.
+        返回值：
+        无。
         """
 
         self.username      = username
@@ -71,18 +55,11 @@ class QueryResult():
 
 
     def __str__(self):
-        """Convert Object To String.
-
-        Keyword Arguments:
-        self                   -- This object.
-
-        Return Value:
-        Nicely formatted string to get information about this object.
-        """
+        """返回查询状态及额外上下文信息的字符串表示。"""
         status = str(self.status)
         if self.context is not None:
-            # There is extra context information available about the results.
-            # Append it to the normal response text.
+            # 结果包含额外的上下文信息时，
+            # 将其追加到常规状态文本之后。
             status += f" ({self.context})"
 
         return status

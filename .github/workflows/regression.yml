@@ -27,8 +27,8 @@ on:
 jobs:
   tox-lint:
     runs-on: ubuntu-latest
-    # Linting is run through tox to ensure that the same linter
-    # is used by local runners
+    # 通过 tox 执行静态检查，
+    # 确保与本地使用相同的检查工具。
     steps:
       - uses: actions/checkout@v6
       - name: Set up linting environment
@@ -44,7 +44,7 @@ jobs:
   tox-matrix:
     runs-on: ${{ matrix.os }}
     strategy:
-      # We want to know what specific versions it fails on
+      # 保留所有组合的执行结果，以定位具体失败的版本。
       fail-fast: false
       matrix:
         os: [

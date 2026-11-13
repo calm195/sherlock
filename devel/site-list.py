@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-# This module generates the listing of supported sites which can be found in
-# sites.mdx. It also organizes all the sites in alphanumeric order
+# 生成支持的站点列表并写入 sites.mdx，
+# 同时按字母和数字顺序整理所有站点。
 import json
 import os
 
@@ -8,21 +8,21 @@ DATA_REL_URI: str = "sherlock_project/resources/data.json"
 
 DEFAULT_ENCODING = "utf-8"
 
-# Read the data.json file
+# 读取 data.json 文件。
 with open(DATA_REL_URI, "r", encoding=DEFAULT_ENCODING) as data_file:
     data: dict = json.load(data_file)
 
-# Removes schema-specific keywords for proper processing
+# 移除 JSON Schema 专用字段，避免将其当作站点处理。
 social_networks = data.copy()
 social_networks.pop('$schema', None)
 
-# Sort the social networks in alphanumeric order
+# 按字母和数字顺序排列社交网站。
 social_networks = sorted(social_networks.items())
 
-# Make output dir where the site list will be written
+# 创建用于保存站点列表的输出目录。
 os.mkdir("output")
 
-# Write the list of supported sites to sites.mdx
+# 将支持的站点列表写入 sites.mdx。
 with open("output/sites.mdx", "w", encoding=DEFAULT_ENCODING) as site_file:
     site_file.write("---\n")
     site_file.write("title: 'List of supported sites'\n")
@@ -36,10 +36,10 @@ with open("output/sites.mdx", "w", encoding=DEFAULT_ENCODING) as site_file:
         is_nsfw = "**(NSFW)**" if info.get("isNSFW") else ""
         site_file.write(f"1. [{social_network}]({url_main}) {is_nsfw}\n")
 
-# Overwrite the data.json file with sorted data
+# 用排序后的数据覆盖 data.json 文件。
 with open(DATA_REL_URI, "w", encoding=DEFAULT_ENCODING) as data_file:
     sorted_data = json.dumps(data, indent=2, sort_keys=True)
     data_file.write(sorted_data)
-    data_file.write("\n")  # Keep the newline after writing data
+    data_file.write("\n")  # 写入数据后保留文件末尾的换行。
 
 print("Finished updating supported site listing!")

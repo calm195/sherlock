@@ -1,4 +1,4 @@
-# Virtual Environments
+# 虚拟环境
 .venv/
 venv/
 bin/
@@ -6,43 +6,43 @@ lib/
 pyvenv.cfg
 poetry.lock
 
-# Regression Testing
+# 回归测试
 .coverage
 .tox/
 
-# Editor Configurations
+# 编辑器配置
 .vscode/
 .idea/
 
-# Python
+# Python 缓存
 __pycache__/
 
-# Pip
+# pip 源码目录
 src/
 
-# Devel, Build, and Installation
+# 开发、构建与安装产物
 *.egg-info/
 dist/**
 
-# Jupyter Notebook
+# Jupyter 笔记本
 .ipynb_checkpoints
 *.ipynb
 
-# Output files, except requirements.txt
+# 输出文件，保留 requirements.txt
 *.txt
 !requirements.txt
 
-# Comma-Separated Values (CSV) Reports
+# 逗号分隔值（CSV）报告
 *.csv
 
-#XLSX Reports
+# XLSX 报告
 *.xlsx
 
-# Excluded sites list
+# 站点排除列表
 tests/.excluded_sites
 
-# MacOS Folder Metadata File
+# macOS 文件夹元数据
 .DS_Store
 
-# Vim swap files
+# Vim 交换文件
 *.swp

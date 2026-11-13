@@ -17,7 +17,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
-          # Checkout the base branch but fetch all history to avoid a second fetch call
+          # 检出目标分支并获取完整历史，避免再次拉取历史记录。
           ref: ${{ github.base_ref }}
           fetch-depth: 0
           persist-credentials: false
@@ -38,19 +38,19 @@ jobs:
 
       - name: Prepare JSON versions for comparison
         run: |
-          # Fetch only the PR's branch head (single network call in this step)
+          # 仅拉取 PR 分支的最新提交，本步骤只需一次网络请求。
           git fetch origin pull/${{ github.event.pull_request.number }}/head:pr
 
-          # Find the merge-base commit between the target branch and the PR branch
+          # 查找目标分支与 PR 分支的共同祖先提交。
           MERGE_BASE=$(git merge-base origin/${{ github.base_ref }} pr)
           echo "Comparing PR head against merge-base commit: $MERGE_BASE"
 
-          # Safely extract the file from the PR's head and the merge-base commit
+          # 分别从 PR 最新提交与共同祖先提交中提取文件。
           git show pr:sherlock_project/resources/data.json > data.json.head
           git show $MERGE_BASE:sherlock_project/resources/data.json > data.json.base
 
-          # CRITICAL FIX: Overwrite the checked-out data.json with the one from the PR
-          # This ensures that pytest runs against the new, updated file.
+          # 用 PR 中的 data.json 覆盖当前检出的文件，
+          # 确保 pytest 验证的是修改后的站点数据。
           cp data.json.head sherlock_project/resources/data.json
 
       - name: Discover modified targets
@@ -79,7 +79,7 @@ jobs:
           EOF
           )
 
-          # Preserve changelist
+          # 保存变更站点列表。
           echo -e ">>> Changed targets: \n$(echo $CHANGED | tr ',' '\n')"
           echo "changed_targets=$CHANGED" >> "$GITHUB_OUTPUT"
 
@@ -88,7 +88,7 @@ jobs:
         run: |
           poetry run pytest tests/test_manifest.py::test_validate_manifest_against_local_schema
 
-      # --- The rest of the steps below are unchanged ---
+      # 以下步骤验证目标站点并汇总结果。
 
       - name: Validate modified targets
         env:
