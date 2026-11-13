@@ -2,6 +2,15 @@ import os
 from sherlock_interactives import Interactives
 import sherlock_project
 
+def test_version_without_installed_metadata(monkeypatch) -> None:
+    expected_version = sherlock_project.get_version()
+
+    def missing_version(package_name):
+        raise sherlock_project.PackageNotFoundError(package_name)
+
+    monkeypatch.setattr(sherlock_project, "pkg_version", missing_version)
+    assert sherlock_project.get_version() == expected_version
+
 def test_versioning() -> None:
     # Ensure __version__ matches version presented to the user
     assert sherlock_project.__version__ in Interactives.run_cli("--version")

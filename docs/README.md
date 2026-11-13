@@ -45,6 +45,30 @@ Community-maintained packages are available for Debian (>= 13), Ubuntu (>= 22.10
 
 See all alternative installation methods [here](https://sherlockproject.xyz/installation).
 
+### Run from source with uv
+
+With [uv](https://docs.astral.sh/uv/getting-started/installation/) installed, run
+these commands from the repository root (Python 3.10 or newer):
+
+```bash
+uv sync --locked
+uv run sherlock --help
+uv run sherlock user123
+```
+
+`uv sync` creates a local `.venv` and installs the project and development
+dependencies from `uv.lock`. Use `uv sync --locked --no-dev` for runtime
+dependencies only, or `uv sync --locked --all-groups` to also install the CI tools.
+
+To run the tests that do not probe social networks:
+
+```bash
+uv run pytest -m "not online and not validate_targets"
+```
+
+After changing dependencies in `pyproject.toml`, run `uv lock` and commit the
+updated `uv.lock` alongside it.
+
 ## General usage
 
 To search for only one user:
