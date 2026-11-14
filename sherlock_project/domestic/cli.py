@@ -5,6 +5,8 @@ from argparse import ArgumentTypeError
 from dataclasses import asdict
 from pathlib import Path
 
+from sherlock_project.util.text import escape_terminal_text
+
 from .models import PLATFORMS, Result, normalize_platform
 from .transport import Client
 
@@ -56,8 +58,7 @@ def add_arguments(parser):
 def _display(result: Result):
     """显示所有状态，避免未验证结果被默认为账号命中。"""
     def emit(text):
-        # 昵称和分享文本可能来自网页，不能让控制字符改变终端显示。
-        print("".join(char if char.isprintable() else repr(char)[1:-1] for char in text))
+        print(escape_terminal_text(text))
 
     name = PLATFORMS.get(result.platform, result.platform or "未识别平台")
     emit(f"[{result.status.value}] {name} · {result.input}")

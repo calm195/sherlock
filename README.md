@@ -198,11 +198,20 @@ sherlock/
 ├── sherlock_project/
 │   ├── __init__.py                   # 包信息与版本读取
 │   ├── __main__.py                   # python -m sherlock_project 入口
-│   ├── sherlock.py                   # CLI、并发请求、判定和结果导出
+│   ├── sherlock.py                   # 命令行及历史 Python 导入的兼容入口
+│   ├── cli.py                        # 参数定义、信号处理和运行模式分发
+│   ├── runner.py                     # 版本提示、站点选择和多用户名查询编排
+│   ├── query.py                      # 请求准备、并发查询和站点规则判定
+│   ├── exports.py                    # TXT、CSV 和 XLSX 结果导出
 │   ├── sites.py                      # 站点清单加载、排除和 NSFW 过滤
 │   ├── result.py                     # QueryStatus、QueryResult
 │   ├── notify.py                     # 查询通知接口与终端输出实现
 │   ├── domestic/                     # 国内平台解析、搜索、请求和独立结果模型
+│   ├── util/                         # 可复用工具，不依赖查询或平台业务模块
+│   │   ├── cli.py                    # 超时参数校验和信号退出处理
+│   │   ├── http.py                   # 并发请求计时、响应获取和异常分类
+│   │   ├── text.py                   # 模板替换、控制字符检查和终端转义
+│   │   └── username.py               # 用户名占位符检查与展开
 │   ├── py.typed                      # 类型信息标记
 │   └── resources/
 │       ├── data.json                 # 内置站点清单
@@ -227,20 +236,22 @@ sherlock/
 
 ```mermaid
 flowchart TD
-    A[命令行或模块入口] --> B[main 解析参数]
-    B --> C[加载站点清单并过滤]
+    A[sherlock.py 兼容入口] --> B[cli.main 解析参数]
+    B --> C[runner 加载站点清单并过滤]
     B --> J[resolve / search 国内平台模式]
     J --> K[识别平台与输入、请求公开接口或给出搜索指引]
     K --> L[输出解析状态、候选和 JSON 报告]
     C --> D[选择站点并展开用户名]
-    D --> E[sherlock 校验用户名并提交并发请求]
-    E --> F[get_response 获取响应或异常]
+    D --> E[query.sherlock 校验用户名并提交并发请求]
+    E --> F[util.http 获取响应或异常]
     F --> G[依据站点规则生成 QueryResult]
     G --> H[QueryNotifyPrint 输出状态]
-    G --> I[汇总结果并按参数导出文件]
+    G --> I[exports 按参数导出文件]
 ```
 
-入口命令 `sherlock` 在 `[project.scripts]` 中映射到 `sherlock_project.sherlock:main`。`SitesInformation` 负责提供站点数据，`sherlock()` 负责一次用户名查询；多个用户名依次处理，每个用户名内部的站点请求并发执行。需要自定义结果通知时，可以继承 `QueryNotify`，实现 `start()`、`update()` 和 `finish()`。
+入口命令 `sherlock` 在 `[project.scripts]` 中仍映射到 `sherlock_project.sherlock:main`，通过兼容入口调用 `cli.main()`。`cli` 定义参数并分发运行模式，`runner` 负责站点选择和多用户名流程，`query.sherlock()` 执行一次用户名查询，`exports` 写入报告。多个用户名依次处理，每个用户名内部的站点请求并发执行。原有 `from sherlock_project.sherlock import sherlock` 调用方式继续可用。需要自定义结果通知时，可以继承 `QueryNotify`，实现 `start()`、`update()` 和 `finish()`。
+
+通用辅助逻辑集中在 `sherlock_project.util`，按职责从子模块导入，例如 `from sherlock_project.util.text import interpolate_string`。`sherlock.py` 保留原有工具名称的导入入口，以兼容已有调用；新增代码优先使用 `util` 中的实现。平台别名、域名白名单、账号 ID 规则和结果状态仍由 `domestic/` 管理。
 
 ### 结果状态
 
@@ -260,6 +271,8 @@ flowchart TD
 
 - 格式遵循 [.editorconfig](.editorconfig)：UTF-8、LF 换行、文件末尾换行；Python 使用 4 个空格缩进，其他文件默认使用 2 个空格。
 - Python 字符串按编辑器约定使用双引号，修改时保持周围代码风格，避免无关的大范围格式调整。
+- 与平台或查询流程无关的通用函数放入 `util/` 对应子模块；业务模块可以依赖工具包，工具包不反向导入 `sherlock.py`、`domestic/` 或结果模型，避免循环依赖。
+- 命令行参数、流程编排、站点判定和报告导出分别维护在 `cli.py`、`runner.py`、`query.py`、`exports.py` 中；`sherlock.py` 仅维护兼容入口，业务模块不反向导入它。
 - 新增功能优先复用站点数据、结果对象和通知接口；站点特有的 URL、请求头、请求方式和匹配规则尽量放在 JSON 清单中。
 - 需要内部 ID 或结构化响应的国内平台适配放在 `domestic/` 中；只有取得明确的账号资料才返回 `FOUND`，登录、验证码和通用页面不能作为账号不存在的依据。修改请求域名时同步维护白名单和跳转测试。
 - 修改查询或错误处理逻辑时，增加能覆盖具体行为的回归测试；普通单元测试优先使用本地数据或替代网络响应。

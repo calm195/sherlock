@@ -4,6 +4,8 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 
 import requests
 
+from sherlock_project.util.text import has_control_characters
+
 HOSTS = {
     "bilibili": {
         "space.bilibili.com", "api.bilibili.com", "www.bilibili.com",
@@ -31,7 +33,7 @@ class FetchError(Exception):
 
 def validate_url(url: str, platform: str) -> str:
     """仅允许当前平台的已知公开域名，并使用 HTTPS。"""
-    if url != url.strip() or "\\" in url or any(ord(c) < 32 or ord(c) == 127 for c in url):
+    if url != url.strip() or "\\" in url or has_control_characters(url):
         raise FetchError("链接含有非法字符。")
     try:
         parts = urlsplit(url)

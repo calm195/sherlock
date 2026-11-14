@@ -4,6 +4,8 @@ import re
 from html import unescape
 from urllib.parse import quote, urlencode
 
+from sherlock_project.util.text import has_control_characters
+
 from .models import Profile, Result, Status, normalize_platform
 from .transport import Client, FetchError
 
@@ -120,7 +122,7 @@ def search(query: str, platform: str, client: Client, limit: int = 5) -> Result:
     except ValueError as exc:
         return Result(platform, query, Status.INVALID, str(exc))
     query = query.strip()
-    if not query or any(ord(char) < 32 or ord(char) == 127 for char in query):
+    if not query or has_control_characters(query):
         return Result(platform, query, Status.INVALID, "请输入非空昵称，且不要包含控制字符。")
     if type(limit) is not int or not 1 <= limit <= 20:
         return Result(platform, query, Status.INVALID, "候选数量必须是 1 到 20 之间的整数。")
