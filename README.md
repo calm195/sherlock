@@ -18,6 +18,7 @@ Sherlock 是一个基于 Python 的命令行工具，用于按用户名查找社
 | 结果展示与导出 | 支持彩色终端输出、浏览器打开命中页面，以及 TXT、CSV、XLSX 导出 |
 | 可维护的站点清单 | 支持远程清单、本地清单、自定义 JSON 文件，以及上游误报排除列表 |
 | 结果状态区分 | 区分发现账号、未发现账号、未知错误、非法用户名和 WAF 拦截 |
+| 国内平台解析 | 提取 B站、小红书、抖音、快手、QQ 的主页 ID，解析微信公开文章中的公众号标识；支持 B站昵称候选搜索及其他平台搜索指引 |
 
 检测命中表示站点响应符合当前规则；同名账号是否属于同一个人，需要结合页面内容判断。站点改版、登录限制和反爬机制也可能影响检测结果。
 
@@ -111,6 +112,65 @@ uv run --locked sherlock user123 --json sherlock_project/resources/data.json \
 
 默认运行会读取远程站点清单并尝试应用上游排除列表。`--local` 只改变站点清单的来源，仍会请求目标网站；命令启动时也会尝试检查新版本。`--proxy` 当前只用于站点探测，版本检查和清单下载不通过这个参数设置代理。
 
+## 国内平台：主页解析与昵称搜索
+
+国内平台使用独立的 `--resolve` / `--search` 模式，不依赖 `data.json`。显示昵称、小红书号、抖音号和快手号不一定是主页 URL 中的内部 ID，不能直接拼接到主页地址。
+
+| 平台 | 主页 / ID 解析 | 昵称搜索 |
+| --- | --- | --- |
+| Bilibili | 数字 UID、空间主页、跳转到主页的 `b23.tv` 短链；尝试公开接口验证 | 尝试公开用户搜索接口，返回候选账号；受限时返回 `BLOCKED` |
+| 小红书 | 主页中的 24 位内部 ID、主页链接及主页短链；不把小红书号转换成内部 ID | 提供官方搜索入口，当前不自动提取候选 |
+| 抖音 | `sec_uid`、主页链接及主页短链；不把抖音号转换成 `sec_uid` | 提供官方搜索入口，当前不自动提取候选 |
+| 快手 | 主页 ID、主页链接及主页短链；不把昵称或自定义快手号转换成主页 ID | 提供官方搜索入口，当前不自动提取候选 |
+| QQ | 数字 QQ 号及支持的公开链接，生成 QQ 空间地址；不验证账号存在性 | 提示在 QQ 客户端搜索，无公开昵称搜索接口适配 |
+| 微信 | 公开公众号文章链接中的 `__biz`，以及可读取文章中的作者标识和昵称；不支持个人微信号验证 | 提示在微信客户端搜索，不提供个人账号自动搜索 |
+
+```bash
+# 按 UID 解析；也可写成 --resolve 'bilibili:2'
+uv run --locked sherlock --resolve --platform bilibili 2
+
+# 从主页链接自动识别平台（带查询参数的 URL 应加引号）
+uv run --locked sherlock --resolve 'https://space.bilibili.com/2'
+
+# 解析 QQ 号；RESOLVED 只表示取得规范的标识和链接
+uv run --locked sherlock --resolve --platform QQ 10000
+
+# 昵称搜索：默认遍历六个平台，显示候选或该平台的限制
+uv run --locked sherlock --search '示例昵称'
+
+# 指定平台；最多显示 5 个候选，并导出所有状态
+uv run --locked sherlock --search --platform bilibili '示例昵称' \
+  --max-results 5 --result-json results.json
+
+# 中文名称和英文名称均可使用；支持一次选择多个平台
+uv run --locked sherlock --search --platform 小红书 --platform 抖音 '示例昵称'
+
+# 纯 JSON 输出到标准输出，方便其他程序读取
+uv run --locked sherlock --resolve 'qq:10000' --result-json -
+```
+
+`--resolve` 可从链接或 `平台:ID` 前缀识别平台；裸 ID 必须配合 `--platform`。分享文案须包含唯一的 URL，短链须最终指向受支持的主页；视频、笔记和作品链接当前不解析作者，也不会把 URL 中的分享者当成作者。多个输入仍以空格分隔，带空格的昵称、链接和分享文案需要引号。
+
+`--search` 支持重复指定 `--platform`；不指定时处理六个平台。B站当前只读取搜索接口第一页，`--max-results` 限制输出数量（1–20，默认 5），搜索候选可能包含近似昵称。即使昵称相同，也不能据此认定不同平台的账号属于同一个人。
+
+该模式的结果状态独立于传统用户名检测：
+
+| 状态 | 含义 |
+| --- | --- |
+| `FOUND` | 公开响应中取得对应账号资料或搜索候选 |
+| `RESOLVED` | 已取得规范的标识或链接，**未验证账号存在** |
+| `NOT_FOUND` | 接口明确返回未找到账号或有效的空搜索结果 |
+| `BLOCKED` | 遇到登录、验证码或风控，无法验证；可能保留已解析的 ID |
+| `UNSUPPORTED` | 当前不支持该输入或自动搜索；可能附带手动搜索入口 |
+| `INVALID` | 平台、标识或链接格式不符合要求 |
+| `ERROR` | 网络异常或响应结构异常，无法完成查询 |
+
+JSON 报告包含 `mode` 和 `results`。每个结果记录 `platform`、`input`、`status`、`message`、`profiles`、`search_url`；每个账号记录 `identifier`、`identifier_kind`、`url` 和可选 `nickname`。**不能仅凭 `profiles` 非空判断找到账号**，应同时检查 `status`。
+
+国内平台模式支持 `--timeout` 和 `--proxy`，跳过版本检查及远程站点清单下载。导出使用 `--result-json`；不能与 `--site`、`--local`、`--json`、TXT/CSV/XLSX 等传统探测选项混用。
+
+本次实测中，最终 CLI 成功取得 B站 UID `2` 的资料；此前请求也遇到过风控码 `-352`，昵称搜索仍返回 HTTP `412`。小红书出现登录跳转或通用页面，抖音返回空正文，快手返回通用网页内容，均未据此判断账号存在。B站昵称搜索与微信文章作者的成功分支仅使用模拟响应验证。QQ 的官方资料接口要求 OAuth 授权，详见 [QQ 互联接口说明](https://wiki.connect.qq.com/get_user_info/)。
+
 ## 技术栈
 
 | 层次 | 技术 | 在项目中的用途 |
@@ -142,6 +202,7 @@ sherlock/
 │   ├── sites.py                      # 站点清单加载、排除和 NSFW 过滤
 │   ├── result.py                     # QueryStatus、QueryResult
 │   ├── notify.py                     # 查询通知接口与终端输出实现
+│   ├── domestic/                     # 国内平台解析、搜索、请求和独立结果模型
 │   ├── py.typed                      # 类型信息标记
 │   └── resources/
 │       ├── data.json                 # 内置站点清单
@@ -168,6 +229,9 @@ sherlock/
 flowchart TD
     A[命令行或模块入口] --> B[main 解析参数]
     B --> C[加载站点清单并过滤]
+    B --> J[resolve / search 国内平台模式]
+    J --> K[识别平台与输入、请求公开接口或给出搜索指引]
+    K --> L[输出解析状态、候选和 JSON 报告]
     C --> D[选择站点并展开用户名]
     D --> E[sherlock 校验用户名并提交并发请求]
     E --> F[get_response 获取响应或异常]
@@ -197,6 +261,7 @@ flowchart TD
 - 格式遵循 [.editorconfig](.editorconfig)：UTF-8、LF 换行、文件末尾换行；Python 使用 4 个空格缩进，其他文件默认使用 2 个空格。
 - Python 字符串按编辑器约定使用双引号，修改时保持周围代码风格，避免无关的大范围格式调整。
 - 新增功能优先复用站点数据、结果对象和通知接口；站点特有的 URL、请求头、请求方式和匹配规则尽量放在 JSON 清单中。
+- 需要内部 ID 或结构化响应的国内平台适配放在 `domestic/` 中；只有取得明确的账号资料才返回 `FOUND`，登录、验证码和通用页面不能作为账号不存在的依据。修改请求域名时同步维护白名单和跳转测试。
 - 修改查询或错误处理逻辑时，增加能覆盖具体行为的回归测试；普通单元测试优先使用本地数据或替代网络响应。
 - 版本号维护在 `pyproject.toml` 的 `[project].version` 中；运行时优先读取安装元数据，缺失时从该字段读取，避免在模块中重复硬编码版本号。
 

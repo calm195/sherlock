@@ -15,6 +15,7 @@ except ImportError:
     sys.exit(1)
 
 import csv
+import math
 import signal
 import pandas as pd
 import os
@@ -39,6 +40,8 @@ from sherlock_project.result import QueryResult
 from sherlock_project.notify import QueryNotify
 from sherlock_project.notify import QueryNotifyPrint
 from sherlock_project.sites import SitesInformation
+from sherlock_project.domestic.cli import add_arguments as add_domestic_arguments
+from sherlock_project.domestic.cli import run_if_requested as run_domestic
 from colorama import init
 from argparse import ArgumentTypeError
 
@@ -502,7 +505,7 @@ def timeout_check(value):
 
     float_value = float(value)
 
-    if float_value <= 0:
+    if not math.isfinite(float_value) or float_value <= 0:
         raise ArgumentTypeError(
             f"Invalid timeout value: {value}. Timeout must be a positive number."
         )
@@ -674,10 +677,15 @@ def main():
         help="Ignore upstream exclusions (may return more false positives)",
     )
 
+    add_domestic_arguments(parser)
     args = parser.parse_args()
 
     # 用户按下 Ctrl+C 时正常退出，避免输出异常堆栈。
     signal.signal(signal.SIGINT, handler)
+
+    # 国内平台模式直接使用公开页面解析器，无需下载用户名站点清单。
+    if run_domestic(args, parser):
+        return
 
     # 检查 Sherlock 是否有新版本，并在发现更新时提示用户。
     try:
